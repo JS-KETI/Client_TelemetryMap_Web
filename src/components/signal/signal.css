@@ -1,0 +1,451 @@
+/* Signal Map 탭 — 기존 다크테마 CSS 변수 재사용. */
+
+.signal-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: calc(100vh - 130px);
+  min-height: 540px;
+}
+
+/* 서브탭 네비게이션 */
+.signal-subtabs {
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+  flex: none;
+}
+.signal-subtab {
+  padding: 7px 18px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: 8px 8px 0 0;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+}
+.signal-subtab:hover {
+  color: var(--text-primary);
+}
+.signal-subtab.active {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border-color: var(--border);
+  border-bottom-color: var(--bg-secondary);
+}
+
+.signal-subtab-body {
+  flex: 1;
+  min-height: 0;
+}
+
+/* 공통 지도 */
+.signal-leaflet {
+  width: 100%;
+  height: 100%;
+  background: var(--bg-secondary);
+  border-radius: 10px;
+}
+
+/* 빈 상태 오버레이 */
+.signal-empty-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 16px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  pointer-events: none;
+}
+.signal-empty-overlay.static {
+  background: var(--bg-secondary);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+}
+.signal-panel-empty {
+  color: var(--text-secondary);
+  font-size: 13px;
+  padding: 8px 4px;
+}
+
+/* ===== 실시간 지도 ===== */
+.signal-live {
+  display: grid;
+  grid-template-columns: 1fr 220px;
+  gap: 12px;
+  height: 100%;
+}
+.signal-live-map {
+  position: relative;
+  height: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.signal-live-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  overflow-y: auto;
+}
+.signal-panel-head {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.signal-device-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.signal-device-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border: 1px solid transparent;
+  background: var(--bg-card);
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-size: 12px;
+  text-align: left;
+}
+.signal-device-row:hover {
+  border-color: var(--accent);
+}
+.signal-device-row.active {
+  border-color: var(--accent);
+  background: rgba(59, 130, 246, 0.18);
+}
+.signal-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: none;
+}
+.signal-device-id {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.signal-device-score {
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.signal-device-detail {
+  margin-top: auto;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+.signal-detail-title {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.signal-device-detail dl {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 3px 8px;
+  font-size: 12px;
+}
+.signal-device-detail dt {
+  color: var(--text-secondary);
+}
+.signal-detail-note {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* Leaflet 팝업/툴팁 다크 테마 (MapPip 패턴) */
+.signal-tab .leaflet-popup-content-wrapper,
+.signal-tab .leaflet-popup-tip {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+.signal-tab .leaflet-popup-content-wrapper {
+  border-radius: 8px;
+}
+.signal-tab .leaflet-popup-content {
+  margin: 8px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.signal-tab .leaflet-popup-close-button {
+  color: var(--text-secondary);
+}
+.signal-popup dl {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 2px 8px;
+  margin-top: 6px;
+}
+.signal-popup dt {
+  color: var(--text-secondary);
+}
+.signal-popup-grade {
+  font-weight: 700;
+  margin-top: 2px;
+}
+.signal-tab .leaflet-tooltip.signal-tag {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+}
+.signal-tab .leaflet-tooltip.signal-tag::before {
+  display: none;
+}
+.signal-tab .signal-marker {
+  background: transparent;
+  border: none;
+}
+.signal-tab .leaflet-control-attribution {
+  background: rgba(30, 41, 59, 0.8);
+  color: var(--text-secondary);
+  font-size: 9px;
+}
+.signal-tab .leaflet-control-attribution a {
+  color: var(--accent);
+}
+.signal-tab .leaflet-tooltip {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+
+/* ===== 공통 컨트롤 ===== */
+.signal-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  flex: none;
+}
+.signal-seg {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.signal-seg-btn {
+  padding: 6px 16px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+.signal-seg-btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+.signal-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.signal-field select {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+.signal-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.signal-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.signal-legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+/* ===== 히트맵 ===== */
+.signal-heatmap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+}
+.signal-floor-chips {
+  display: flex;
+  gap: 6px;
+  flex: none;
+}
+.signal-chip {
+  padding: 5px 14px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+.signal-chip.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.signal-heatmap-body {
+  position: relative;
+  flex: 1;
+  min-height: 400px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+/* 실내 이미지 + 셀 사각형 */
+.signal-indoor-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-primary);
+  overflow: auto;
+}
+.signal-indoor-stage {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+}
+.signal-floor-img {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.signal-cell-rect {
+  position: absolute;
+  border: 1px solid rgba(15, 23, 42, 0.6);
+  pointer-events: auto;
+}
+.signal-indoor-note {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(15, 23, 42, 0.8);
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+/* ===== 분석 ===== */
+.signal-analysis {
+  height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.signal-section {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+}
+.signal-section h4 {
+  font-size: 14px;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+/* chart.js 캔버스 컨테이너 — maintainAspectRatio:false 라 고정 높이 필요 */
+.signal-chart-wrap {
+  position: relative;
+  width: 100%;
+  height: 280px;
+}
+
+.signal-replay {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.signal-replay-map {
+  position: relative;
+  height: 320px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.signal-replay-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.signal-play-btn {
+  padding: 7px 16px;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.signal-play-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.signal-replay-controls input[type='range'] {
+  flex: 1;
+  accent-color: var(--accent);
+}
+.signal-replay-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  min-width: 200px;
+  text-align: right;
+}
+
+@media (max-width: 720px) {
+  .signal-live {
+    grid-template-columns: 1fr;
+  }
+  .signal-legend {
+    margin-left: 0;
+  }
+}
