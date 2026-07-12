@@ -1,9 +1,11 @@
 // 히트맵 — 실외(Leaflet GeoJSON 폴리곤) / 실내(층 이미지 + 정규화 좌표 셀 사각형) 토글.
+// 실외 지도에는 라이브 디바이스 마커를 겹쳐 표시하고, 셀 집계는 주기적으로 자동 갱신한다.
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { MapContainer, TileLayer, useMap } from 'react-leaflet';
+import { MapContainer, Marker, TileLayer, Tooltip, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { fetchCells, fetchFloors, floorImageUrl } from '../../api/signalApi';
+import type { DeviceLatest } from '../../hooks/useSignalStore';
 import type {
   CellFeatureCollection,
   CellFeatureProperties,
@@ -17,11 +19,14 @@ import {
   gradeFill,
   GRADE_LABELS,
   GRADE_ORDER,
+  measurementGrade,
   METRIC_OPTIONS,
   rangeToFromTo,
   TIME_RANGES,
 } from '../../utils/signal';
-import { ESRI_LABELS, ESRI_SATELLITE, InvalidateOnResize, SEOUL } from './mapShared';
+import { ESRI_LABELS, ESRI_SATELLITE, InvalidateOnResize, makeSignalIcon, SEOUL } from './mapShared';
+
+const CELLS_REFRESH_MS = 15_000; // 측정 진행 중 격자가 실시간으로 채워지도록 주기 갱신
 
 type LGeoJsonArg = Parameters<typeof L.geoJSON>[0];
 const round1 = (v: number): number => Math.round(v * 10) / 10;
@@ -29,6 +34,7 @@ const round1 = (v: number): number => Math.round(v * 10) / 10;
 // 실외 GeoJSON 폴리곤을 명령형으로 렌더(등급색 채움 + 값/표본 tooltip). data 변경 시 교체.
 function OutdoorGeoJson({ data }: { data: CellFeatureCollection }) {
   const map = useMap();
+  const fitted = useRef(false); // 최초 1회만 fitBounds — 주기 갱신 때 시점(줌/팬) 유지
   useEffect(() => {
     const layer = L.geoJSON(data as unknown as LGeoJsonArg, {
       style: (feature) => {
@@ -45,11 +51,16 @@ function OutdoorGeoJson({ data }: { data: CellFeatureCollection }) {
         lyr.bindTooltip(`값 ${round1(p.value)} · 표본 ${p.sampleCount}`, { sticky: true });
       },
     }).addTo(map);
-    try {
-      const b = layer.getBounds();
-      if (b.isValid()) map.fitBounds(b, { padding: [30, 30], maxZoom: 18 });
-    } catch {
-      /* 빈 컬렉션이면 무시 */
+    if (!fitted.current) {
+      try {
+        const b = layer.getBounds();
+        if (b.isValid()) {
+          map.fitBounds(b, { padding: [30, 30], maxZoom: 18 });
+          fitted.current = true;
+        }
+      } catch {
+        /* 빈 컬렉션이면 무시 */
+      }
     }
     return () => {
       layer.remove();
@@ -149,7 +160,7 @@ function IndoorHeat({ floorId, cells }: { floorId: number; cells: CellFeatureCol
 
 type Status = 'loading' | 'ready' | 'empty' | 'error';
 
-export function SignalHeatmap() {
+export function SignalHeatmap({ deviceLatest }: { deviceLatest?: DeviceLatest[] }) {
   const [env, setEnv] = useState<Environment>('OUTDOOR');
   const [metric, setMetric] = useState<Metric>('cellularScore');
   const [rangeValue, setRangeValue] = useState<string>('24h');
@@ -157,11 +168,20 @@ export function SignalHeatmap() {
   const [floorId, setFloorId] = useState<number | null>(null);
   const [cells, setCells] = useState<CellFeatureCollection | null>(null);
   const [status, setStatus] = useState<Status>('loading');
+  const [tick, setTick] = useState(0);
+  const cellsRef = useRef<CellFeatureCollection | null>(null);
+  const envKeyRef = useRef<string>('');
 
   const rangeMs = useMemo(
     () => TIME_RANGES.find((r) => r.value === rangeValue)?.ms ?? null,
     [rangeValue],
   );
+
+  // 주기 갱신 타이머 — 측정이 진행되는 동안 격자가 실시간으로 채워진다.
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), CELLS_REFRESH_MS);
+    return () => clearInterval(id);
+  }, []);
 
   // 층 목록 로드(실내 토글용). 실패해도 조용히 빈 목록.
   useEffect(() => {
@@ -181,15 +201,23 @@ export function SignalHeatmap() {
     };
   }, []);
 
-  // 셀 집계 로드.
+  // 셀 집계 로드. 환경/층이 바뀌면 좌표 공간이 달라지므로 기존 데이터를 비우고,
+  // 같은 화면 내 주기 갱신(tick)·지표/기간 변경 때는 기존 격자를 유지한 채 조용히 교체한다.
   useEffect(() => {
     let cancelled = false;
     if (env === 'INDOOR' && floorId == null) {
+      cellsRef.current = null;
       setCells(null);
       setStatus('empty');
       return;
     }
-    setStatus('loading');
+    const envKey = `${env}:${floorId ?? ''}`;
+    if (envKeyRef.current !== envKey) {
+      envKeyRef.current = envKey;
+      cellsRef.current = null;
+      setCells(null);
+    }
+    if (!cellsRef.current) setStatus('loading');
     const { from, to } = rangeToFromTo(rangeMs);
     fetchCells({
       environment: env,
@@ -200,18 +228,21 @@ export function SignalHeatmap() {
     })
       .then((fc) => {
         if (cancelled) return;
+        cellsRef.current = fc;
         setCells(fc);
         setStatus(fc.features.length === 0 ? 'empty' : 'ready');
       })
       .catch(() => {
         if (cancelled) return;
-        setCells(null);
-        setStatus('error');
+        if (!cellsRef.current) {
+          setCells(null);
+          setStatus('error');
+        }
       });
     return () => {
       cancelled = true;
     };
-  }, [env, metric, rangeMs, floorId]);
+  }, [env, metric, rangeMs, floorId, tick]);
 
   return (
     <div className="signal-heatmap">
@@ -294,6 +325,21 @@ export function SignalHeatmap() {
             <TileLayer url={ESRI_LABELS} />
             <InvalidateOnResize />
             {cells && status === 'ready' && <OutdoorGeoJson data={cells} />}
+            {deviceLatest
+              ?.filter((d) => d.latestOutdoor)
+              .map((d) => {
+                const m = d.latestOutdoor!;
+                const grade = measurementGrade(m);
+                return (
+                  <Marker
+                    key={d.deviceId}
+                    position={[m.latitude!, m.longitude!]}
+                    icon={makeSignalIcon(gradeColor(grade))}
+                  >
+                    <Tooltip direction="top">{d.deviceId}</Tooltip>
+                  </Marker>
+                );
+              })}
           </MapContainer>
         ) : floorId != null ? (
           <IndoorHeat floorId={floorId} cells={cells} />

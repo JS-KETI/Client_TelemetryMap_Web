@@ -64,7 +64,7 @@ function App() {
         <div className="signal-tab">
           <div className="signal-subtab-body">
             {tab === 'live' && <SignalLiveMap deviceLatest={deviceLatest} />}
-            {tab === 'heatmap' && <SignalHeatmap />}
+            {tab === 'heatmap' && <SignalHeatmap deviceLatest={deviceLatest} />}
             {tab === 'analysis' && <SignalAnalysis storeDeviceIds={deviceIds} />}
           </div>
         </div>
