@@ -21,8 +21,8 @@ const SIGNAL_WS_URL = `${WS_PROTOCOL}://${window.location.host}/ws/signal`;
 type Tab = 'live' | 'heatmap' | 'analysis';
 
 const TABS: { key: Tab; label: string }[] = [
-  { key: 'live', label: '실시간 지도' },
   { key: 'heatmap', label: '히트맵' },
+  { key: 'live', label: '실시간 지도' },
   { key: 'analysis', label: '분석' },
 ];
 
@@ -38,7 +38,7 @@ const ACTIVE_WINDOW_MS = 10 * 60_000;
 
 function App() {
   const { deviceIds, deviceLatest, handleSnapshot, handleUpsert } = useSignalStore();
-  const [tab, setTab] = useState<Tab>('live');
+  const [tab, setTab] = useState<Tab>('heatmap');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [thresholds, setThresholds] = useState<GradeThresholds>(() => loadThresholds());
 

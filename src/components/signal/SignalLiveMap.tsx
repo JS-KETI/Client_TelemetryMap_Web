@@ -98,9 +98,6 @@ export function SignalLiveMap({ deviceLatest, thresholds = DEFAULT_THRESHOLDS }:
   return (
     <div className="signal-live">
       <div className="signal-live-map">
-        {deviceLatest.length === 0 && (
-          <div className="signal-empty-overlay">데이터 없음 · 서버 연결을 확인하세요</div>
-        )}
         <MapContainer center={center} zoom={15} className="signal-leaflet" zoomControl={false}>
           <TileLayer url={ESRI_SATELLITE} attribution="Tiles &copy; Esri" />
           <TileLayer url={ESRI_LABELS} />
