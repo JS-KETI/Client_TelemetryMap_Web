@@ -9,6 +9,9 @@ import { useSignalStore } from './hooks/useSignalStore';
 import { SignalLiveMap } from './components/signal/SignalLiveMap';
 import { SignalHeatmap } from './components/signal/SignalHeatmap';
 import { SignalAnalysis } from './components/signal/SignalAnalysis';
+import { ThresholdSettings } from './components/signal/ThresholdSettings';
+import type { GradeThresholds } from './utils/signal';
+import { loadThresholds, saveThresholds } from './utils/signal';
 import './components/signal/signal.css';
 import './App.css';
 
@@ -32,6 +35,8 @@ const CONN_LABEL: Record<SignalSocketStatus, string> = {
 function App() {
   const { deviceIds, deviceLatest, handleSnapshot, handleUpsert } = useSignalStore();
   const [tab, setTab] = useState<Tab>('live');
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [thresholds, setThresholds] = useState<GradeThresholds>(() => loadThresholds());
 
   const { status } = useSignalSocket({
     url: SIGNAL_WS_URL,
@@ -39,9 +44,15 @@ function App() {
     onUpsert: handleUpsert,
   });
 
+  const handleThresholds = (t: GradeThresholds) => {
+    setThresholds(t);
+    saveThresholds(t);
+  };
+
   return (
     <div className="app">
       <header className="app-header">
+        <img className="app-logo" src="/keti_logo.jpg" alt="KETI" />
         <h1>Signal Quality Map</h1>
         <nav className="tab-bar">
           {TABS.map((t) => (
@@ -58,14 +69,25 @@ function App() {
           <span className="app-conn-dot" />
           {CONN_LABEL[status]}
         </div>
+        <button
+          className={`app-settings-btn ${settingsOpen ? 'active' : ''}`}
+          onClick={() => setSettingsOpen((v) => !v)}
+          title="등급 임계값 설정"
+        >
+          ⚙ 설정
+        </button>
       </header>
+
+      <div className={`settings-drawer ${settingsOpen ? 'open' : ''}`}>
+        <ThresholdSettings thresholds={thresholds} onChange={handleThresholds} />
+      </div>
 
       <main className="app-main">
         <div className="signal-tab">
           <div className="signal-subtab-body">
-            {tab === 'live' && <SignalLiveMap deviceLatest={deviceLatest} />}
-            {tab === 'heatmap' && <SignalHeatmap deviceLatest={deviceLatest} />}
-            {tab === 'analysis' && <SignalAnalysis storeDeviceIds={deviceIds} />}
+            {tab === 'live' && <SignalLiveMap deviceLatest={deviceLatest} thresholds={thresholds} />}
+            {tab === 'heatmap' && <SignalHeatmap deviceLatest={deviceLatest} thresholds={thresholds} />}
+            {tab === 'analysis' && <SignalAnalysis storeDeviceIds={deviceIds} thresholds={thresholds} />}
           </div>
         </div>
       </main>

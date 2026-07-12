@@ -16,7 +16,9 @@ import type { ChartData, ChartOptions } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 import { fetchHistory, fetchMeasurements } from '../../api/signalApi';
 import type { HistoryPoint, SignalMeasurement } from '../../types/signal';
+import type { GradeThresholds } from '../../utils/signal';
 import {
+  DEFAULT_THRESHOLDS,
   fmtTime,
   gradeColor,
   measurementCellScore,
@@ -149,11 +151,12 @@ function ReplayCenter({ target }: { target: LatLngExpression | null }) {
 
 interface Props {
   storeDeviceIds: string[];
+  thresholds?: GradeThresholds;
 }
 
 type LoadState = 'idle' | 'loading' | 'ready' | 'empty' | 'error';
 
-export function SignalAnalysis({ storeDeviceIds }: Props) {
+export function SignalAnalysis({ storeDeviceIds, thresholds = DEFAULT_THRESHOLDS }: Props) {
   const [deviceIds, setDeviceIds] = useState<string[]>(storeDeviceIds);
   const [deviceId, setDeviceId] = useState<string | null>(storeDeviceIds[0] ?? null);
   const [rangeValue, setRangeValue] = useState<string>('24h');
@@ -265,8 +268,8 @@ export function SignalAnalysis({ storeDeviceIds }: Props) {
     [current],
   );
   const currentIcon = useMemo(
-    () => (current ? makeSignalIcon(gradeColor(measurementGrade(current)), true) : null),
-    [current],
+    () => (current ? makeSignalIcon(gradeColor(measurementGrade(current, thresholds)), true) : null),
+    [current, thresholds],
   );
 
   const togglePlay = useCallback(() => {

@@ -14,11 +14,14 @@ import type {
   Metric,
   SignalFloor,
 } from '../../types/signal';
+import type { GradeThresholds } from '../../utils/signal';
 import {
+  DEFAULT_THRESHOLDS,
   gradeColor,
   gradeFill,
   GRADE_LABELS,
   GRADE_ORDER,
+  gradeOfScore,
   measurementGrade,
   METRIC_OPTIONS,
   rangeToFromTo,
@@ -33,13 +36,21 @@ type LGeoJsonArg = Parameters<typeof L.geoJSON>[0];
 const round1 = (v: number): number => Math.round(v * 10) / 10;
 
 // 실외 GeoJSON 폴리곤을 명령형으로 렌더(등급색 채움 + 값/표본 tooltip). data 변경 시 교체.
-function OutdoorGeoJson({ data }: { data: CellFeatureCollection }) {
+function OutdoorGeoJson({
+  data,
+  thresholds,
+}: {
+  data: CellFeatureCollection;
+  thresholds: GradeThresholds;
+}) {
   const map = useMap();
   const fitted = useRef(false); // 최초 1회만 fitBounds — 주기 갱신 때 시점(줌/팬) 유지
   useEffect(() => {
     const layer = L.geoJSON(data as unknown as LGeoJsonArg, {
       style: (feature) => {
-        const g = (feature?.properties?.grade ?? 'NONE') as Grade;
+        // 사용자 임계값 반영을 위해 서버 grade 대신 score 에서 재계산.
+        const p = feature?.properties as CellFeatureProperties | undefined;
+        const g: Grade = p?.score != null ? gradeOfScore(p.score, thresholds) : ((p?.grade ?? 'NONE') as Grade);
         return {
           color: '#0f172a',
           weight: 1,
@@ -66,12 +77,20 @@ function OutdoorGeoJson({ data }: { data: CellFeatureCollection }) {
     return () => {
       layer.remove();
     };
-  }, [data, map]);
+  }, [data, map, thresholds]);
   return null;
 }
 
 // 실내 히트맵 — 층 이미지 위에 정규화 좌표(0..1) 셀을 렌더 크기로 환산해 사각형 배치.
-function IndoorHeat({ floorId, cells }: { floorId: number; cells: CellFeatureCollection | null }) {
+function IndoorHeat({
+  floorId,
+  cells,
+  thresholds,
+}: {
+  floorId: number;
+  cells: CellFeatureCollection | null;
+  thresholds: GradeThresholds;
+}) {
   const imgRef = useRef<HTMLImageElement | null>(null);
   const [size, setSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
   const [imgError, setImgError] = useState(false);
@@ -112,12 +131,15 @@ function IndoorHeat({ floorId, cells }: { floorId: number; cells: CellFeatureCol
         top: minY * size.h,
         width: Math.max(0, (maxX - minX) * size.w),
         height: Math.max(0, (maxY - minY) * size.h),
-        grade: f.properties.grade,
+        grade:
+          f.properties.score != null
+            ? gradeOfScore(f.properties.score, thresholds)
+            : f.properties.grade,
         value: f.properties.value,
         sampleCount: f.properties.sampleCount,
       };
     });
-  }, [cells, size]);
+  }, [cells, size, thresholds]);
 
   return (
     <div className="signal-indoor-wrap">
@@ -161,7 +183,13 @@ function IndoorHeat({ floorId, cells }: { floorId: number; cells: CellFeatureCol
 
 type Status = 'loading' | 'ready' | 'empty' | 'error';
 
-export function SignalHeatmap({ deviceLatest }: { deviceLatest?: DeviceLatest[] }) {
+export function SignalHeatmap({
+  deviceLatest,
+  thresholds = DEFAULT_THRESHOLDS,
+}: {
+  deviceLatest?: DeviceLatest[];
+  thresholds?: GradeThresholds;
+}) {
   const [env, setEnv] = useState<Environment>('OUTDOOR');
   const [metric, setMetric] = useState<Metric>('cellularScore');
   const [rangeValue, setRangeValue] = useState<string>('24h');
@@ -283,12 +311,23 @@ export function SignalHeatmap({ deviceLatest }: { deviceLatest?: DeviceLatest[] 
         </label>
 
         <div className="signal-legend">
-          {GRADE_ORDER.map((g) => (
-            <span key={g} className="signal-legend-item">
-              <span className="signal-legend-dot" style={{ background: gradeColor(g), opacity: g === 'NONE' ? 0.35 : 1 }} />
-              {GRADE_LABELS[g]}
-            </span>
-          ))}
+          {GRADE_ORDER.map((g) => {
+            const range =
+              g === 'GOOD'
+                ? ` ≥${thresholds.good}`
+                : g === 'FAIR'
+                  ? ` ${thresholds.fair}~${thresholds.good - 1}`
+                  : g === 'POOR'
+                    ? ` <${thresholds.fair}`
+                    : '';
+            return (
+              <span key={g} className="signal-legend-item">
+                <span className="signal-legend-dot" style={{ background: gradeColor(g), opacity: g === 'NONE' ? 0.35 : 1 }} />
+                {GRADE_LABELS[g]}
+                {range}
+              </span>
+            );
+          })}
         </div>
       </div>
 
@@ -326,12 +365,12 @@ export function SignalHeatmap({ deviceLatest }: { deviceLatest?: DeviceLatest[] 
             <TileLayer url={ESRI_LABELS} />
             <InvalidateOnResize />
             <MapSearch />
-            {cells && status === 'ready' && <OutdoorGeoJson data={cells} />}
+            {cells && status === 'ready' && <OutdoorGeoJson data={cells} thresholds={thresholds} />}
             {deviceLatest
               ?.filter((d) => d.latestOutdoor)
               .map((d) => {
                 const m = d.latestOutdoor!;
-                const grade = measurementGrade(m);
+                const grade = measurementGrade(m, thresholds);
                 return (
                   <Marker
                     key={d.deviceId}
@@ -344,7 +383,7 @@ export function SignalHeatmap({ deviceLatest }: { deviceLatest?: DeviceLatest[] 
               })}
           </MapContainer>
         ) : floorId != null ? (
-          <IndoorHeat floorId={floorId} cells={cells} />
+          <IndoorHeat floorId={floorId} cells={cells} thresholds={thresholds} />
         ) : (
           <div className="signal-empty-overlay static">층을 선택하세요</div>
         )}

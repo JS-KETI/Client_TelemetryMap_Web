@@ -6,7 +6,9 @@ import type { LatLngExpression } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { DeviceLatest } from '../../hooks/useSignalStore';
 import type { SignalMeasurement } from '../../types/signal';
+import type { GradeThresholds } from '../../utils/signal';
 import {
+  DEFAULT_THRESHOLDS,
   fmtNum,
   fmtTime,
   gradeColor,
@@ -19,6 +21,7 @@ import { MapSearch } from './MapSearch';
 
 interface Props {
   deviceLatest: DeviceLatest[];
+  thresholds?: GradeThresholds;
 }
 
 interface Located {
@@ -57,7 +60,7 @@ function FlyToSelected({ target }: { target: LatLngExpression | null }) {
   return null;
 }
 
-export function SignalLiveMap({ deviceLatest }: Props) {
+export function SignalLiveMap({ deviceLatest, thresholds = DEFAULT_THRESHOLDS }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const located = useMemo<Located[]>(
@@ -75,10 +78,10 @@ export function SignalLiveMap({ deviceLatest }: Props) {
   const icons = useMemo(() => {
     const map = new Map<string, L.DivIcon>();
     for (const d of deviceLatest) {
-      map.set(d.deviceId, makeSignalIcon(gradeColor(measurementGrade(d.latest))));
+      map.set(d.deviceId, makeSignalIcon(gradeColor(measurementGrade(d.latest, thresholds))));
     }
     return map;
-  }, [deviceLatest]);
+  }, [deviceLatest, thresholds]);
 
   const handleSelect = useCallback((id: string) => {
     setSelectedId((prev) => (prev === id ? null : id));
@@ -108,7 +111,10 @@ export function SignalLiveMap({ deviceLatest }: Props) {
           {located.map((d) => {
             const m = d.measurement;
             const score = measurementCellScore(m);
-            const grade = measurementGrade(deviceLatest.find((x) => x.deviceId === d.deviceId)!.latest);
+            const grade = measurementGrade(
+              deviceLatest.find((x) => x.deviceId === d.deviceId)!.latest,
+              thresholds,
+            );
             return (
               <Marker
                 key={d.deviceId}
@@ -146,7 +152,7 @@ export function SignalLiveMap({ deviceLatest }: Props) {
         <div className="signal-device-list">
           {deviceLatest.length === 0 && <div className="signal-panel-empty">데이터 없음</div>}
           {deviceLatest.map((d) => {
-            const grade = measurementGrade(d.latest);
+            const grade = measurementGrade(d.latest, thresholds);
             return (
               <button
                 key={d.deviceId}

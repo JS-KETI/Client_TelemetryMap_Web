@@ -40,11 +40,47 @@ export function wifiScoreOf(wifiRssi: number): number {
   return Math.round(clamp((wifiRssi + 95) * 2.5, 0, 100));
 }
 
-// 점수 → 등급 (계약 §1 구간). null/미측정 → NONE.
-export function gradeOfScore(score: number | null | undefined): Grade {
+// 등급 임계값 — 기본은 계약 §1 구간(양호 ≥60, 보통 ≥25). 설정 패널에서 조정 가능, localStorage 유지.
+export interface GradeThresholds {
+  good: number; // score >= good → GOOD
+  fair: number; // score >= fair → FAIR, 미만 → POOR
+}
+
+export const DEFAULT_THRESHOLDS: GradeThresholds = { good: 60, fair: 25 };
+
+const THRESHOLDS_STORAGE_KEY = 'signal.thresholds';
+
+export function loadThresholds(): GradeThresholds {
+  try {
+    const raw = localStorage.getItem(THRESHOLDS_STORAGE_KEY);
+    if (!raw) return DEFAULT_THRESHOLDS;
+    const parsed = JSON.parse(raw) as Partial<GradeThresholds>;
+    const good = Number(parsed.good);
+    const fair = Number(parsed.fair);
+    if (!Number.isFinite(good) || !Number.isFinite(fair)) return DEFAULT_THRESHOLDS;
+    if (fair < 0 || good > 100 || fair >= good) return DEFAULT_THRESHOLDS;
+    return { good, fair };
+  } catch {
+    return DEFAULT_THRESHOLDS;
+  }
+}
+
+export function saveThresholds(t: GradeThresholds): void {
+  try {
+    localStorage.setItem(THRESHOLDS_STORAGE_KEY, JSON.stringify(t));
+  } catch {
+    /* storage 불가 환경이면 세션 한정 적용 */
+  }
+}
+
+// 점수 → 등급. null/미측정 → NONE. 임계값은 조정 가능(설정 패널).
+export function gradeOfScore(
+  score: number | null | undefined,
+  t: GradeThresholds = DEFAULT_THRESHOLDS,
+): Grade {
   if (score == null || Number.isNaN(score)) return 'NONE';
-  if (score >= 60) return 'GOOD';
-  if (score >= 25) return 'FAIR';
+  if (score >= t.good) return 'GOOD';
+  if (score >= t.fair) return 'FAIR';
   return 'POOR';
 }
 
@@ -75,9 +111,12 @@ export function measurementCellScore(m: SignalMeasurement): number | null {
 }
 
 // 라이브 지도 마커 색상 기준 등급 (계약 §8: 최신 cellularScore 의 등급).
-export function measurementGrade(m: SignalMeasurement): Grade {
-  if (m.grade) return m.grade;
-  return gradeOfScore(measurementCellScore(m));
+// 사용자 조정 임계값을 반영하기 위해 서버 grade 대신 항상 점수에서 로컬 계산한다.
+export function measurementGrade(
+  m: SignalMeasurement,
+  t: GradeThresholds = DEFAULT_THRESHOLDS,
+): Grade {
+  return gradeOfScore(measurementCellScore(m), t);
 }
 
 export interface MetricOption {

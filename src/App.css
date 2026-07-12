@@ -114,3 +114,90 @@ body {
 .app-conn-closed .app-conn-dot {
   background: #ef4444;
 }
+
+/* KETI 로고 (헤더 좌측) */
+.app-logo {
+  height: 30px;
+  border-radius: 4px;
+  margin-right: 4px;
+}
+
+/* 설정 버튼 (헤더 우측) */
+.app-settings-btn {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.app-settings-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* 설정 슬라이드 다운 드로어 */
+.settings-drawer {
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.25s ease;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid transparent;
+}
+.settings-drawer.open {
+  max-height: 180px;
+  border-bottom-color: var(--border);
+}
+
+.threshold-panel {
+  padding: 14px 24px;
+}
+.threshold-fields {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+.threshold-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.threshold-field input {
+  width: 70px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+.threshold-chip {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  display: inline-block;
+}
+.threshold-readonly {
+  color: var(--text-secondary);
+}
+.threshold-reset {
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 13px;
+}
+.threshold-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.threshold-note.threshold-error {
+  color: #ef4444;
+}
