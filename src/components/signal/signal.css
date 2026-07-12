@@ -503,3 +503,20 @@
   color: var(--text-secondary);
   cursor: default;
 }
+/* 히트맵 본문 + 기기 패널 2단 레이아웃 (실시간 지도와 동일 폭) */
+.signal-heatmap-main {
+  display: grid;
+  grid-template-columns: 1fr 220px;
+  gap: 12px;
+  flex: 1;
+  min-height: 400px;
+}
+.signal-heatmap-main .signal-heatmap-body {
+  min-height: 0;
+  height: 100%;
+}
+@media (max-width: 900px) {
+  .signal-heatmap-main {
+    grid-template-columns: 1fr;
+  }
+}

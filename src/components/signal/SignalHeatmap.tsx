@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, Marker, TileLayer, Tooltip, useMap } from 'react-leaflet';
 import L from 'leaflet';
+import type { LatLngExpression } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { fetchCells, fetchFloors, floorImageUrl } from '../../api/signalApi';
 import type { DeviceLatest } from '../../hooks/useSignalStore';
@@ -17,11 +18,13 @@ import type {
 import type { GradeThresholds } from '../../utils/signal';
 import {
   DEFAULT_THRESHOLDS,
+  fmtNum,
   gradeColor,
   gradeFill,
   GRADE_LABELS,
   GRADE_ORDER,
   gradeOfScore,
+  measurementCellScore,
   measurementGrade,
   METRIC_OPTIONS,
   rangeToFromTo,
@@ -183,6 +186,15 @@ function IndoorHeat({
 
 type Status = 'loading' | 'ready' | 'empty' | 'error';
 
+// 기기 리스트에서 선택한 기기 위치로 부드럽게 이동.
+function FlyTo({ target }: { target: LatLngExpression | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (target) map.setView(target, Math.max(map.getZoom(), 17), { animate: true });
+  }, [target, map]);
+  return null;
+}
+
 export function SignalHeatmap({
   deviceLatest,
   thresholds = DEFAULT_THRESHOLDS,
@@ -198,6 +210,7 @@ export function SignalHeatmap({
   const [cells, setCells] = useState<CellFeatureCollection | null>(null);
   const [status, setStatus] = useState<Status>('loading');
   const [tick, setTick] = useState(0);
+  const [flyTarget, setFlyTarget] = useState<LatLngExpression | null>(null);
   const cellsRef = useRef<CellFeatureCollection | null>(null);
   const envKeyRef = useRef<string>('');
 
@@ -346,6 +359,7 @@ export function SignalHeatmap({
         </div>
       )}
 
+      <div className="signal-heatmap-main">
       <div className="signal-heatmap-body">
         {status === 'error' && (
           <div className="signal-empty-overlay static">데이터 없음 · 서버 연결을 확인하세요</div>
@@ -365,6 +379,7 @@ export function SignalHeatmap({
             <TileLayer url={ESRI_LABELS} />
             <InvalidateOnResize />
             <MapSearch />
+            <FlyTo target={flyTarget} />
             {cells && status === 'ready' && <OutdoorGeoJson data={cells} thresholds={thresholds} />}
             {deviceLatest
               ?.filter((d) => d.latestOutdoor)
@@ -387,6 +402,36 @@ export function SignalHeatmap({
         ) : (
           <div className="signal-empty-overlay static">층을 선택하세요</div>
         )}
+      </div>
+
+      <aside className="signal-live-panel">
+        <div className="signal-panel-head">기기 {deviceLatest?.length ?? 0}대</div>
+        <div className="signal-device-list">
+          {(!deviceLatest || deviceLatest.length === 0) && (
+            <div className="signal-panel-empty">활성 기기 없음</div>
+          )}
+          {deviceLatest?.map((d) => {
+            const grade = measurementGrade(d.latest, thresholds);
+            return (
+              <button
+                key={d.deviceId}
+                className="signal-device-row"
+                onClick={() => {
+                  const m = d.latestOutdoor;
+                  if (m) {
+                    setEnv('OUTDOOR');
+                    setFlyTarget([m.latitude!, m.longitude!]);
+                  }
+                }}
+              >
+                <span className="signal-dot" style={{ background: gradeColor(grade) }} />
+                <span className="signal-device-id">{d.deviceId}</span>
+                <span className="signal-device-score">{fmtNum(measurementCellScore(d.latest))}</span>
+              </button>
+            );
+          })}
+        </div>
+      </aside>
       </div>
     </div>
   );
