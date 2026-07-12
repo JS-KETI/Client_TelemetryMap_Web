@@ -25,6 +25,7 @@ import {
   TIME_RANGES,
 } from '../../utils/signal';
 import { ESRI_LABELS, ESRI_SATELLITE, InvalidateOnResize, makeSignalIcon, SEOUL } from './mapShared';
+import { MapSearch } from './MapSearch';
 
 const CELLS_REFRESH_MS = 15_000; // 측정 진행 중 격자가 실시간으로 채워지도록 주기 갱신
 
@@ -324,6 +325,7 @@ export function SignalHeatmap({ deviceLatest }: { deviceLatest?: DeviceLatest[] 
             <TileLayer url={ESRI_SATELLITE} attribution="Tiles &copy; Esri" />
             <TileLayer url={ESRI_LABELS} />
             <InvalidateOnResize />
+            <MapSearch />
             {cells && status === 'ready' && <OutdoorGeoJson data={cells} />}
             {deviceLatest
               ?.filter((d) => d.latestOutdoor)

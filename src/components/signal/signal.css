@@ -449,3 +449,57 @@
     margin-left: 0;
   }
 }
+
+/* 지도 위치 검색 컨트롤 (MapSearch) */
+.signal-map-search {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 1100;
+  width: 260px;
+  font-size: 13px;
+}
+.signal-map-search-row {
+  display: flex;
+  gap: 6px;
+}
+.signal-map-search-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+.signal-map-search-row button {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.signal-map-search-results {
+  margin: 6px 0 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.signal-map-search-results li {
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-primary);
+}
+.signal-map-search-results li:hover {
+  background: var(--bg-card);
+}
+.signal-map-search-results li.signal-map-search-empty {
+  color: var(--text-secondary);
+  cursor: default;
+}

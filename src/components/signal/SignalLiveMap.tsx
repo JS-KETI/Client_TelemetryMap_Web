@@ -15,6 +15,7 @@ import {
   measurementGrade,
 } from '../../utils/signal';
 import { ESRI_LABELS, ESRI_SATELLITE, InvalidateOnResize, makeSignalIcon, SEOUL } from './mapShared';
+import { MapSearch } from './MapSearch';
 
 interface Props {
   deviceLatest: DeviceLatest[];
@@ -101,6 +102,7 @@ export function SignalLiveMap({ deviceLatest }: Props) {
           <TileLayer url={ESRI_SATELLITE} attribution="Tiles &copy; Esri" />
           <TileLayer url={ESRI_LABELS} />
           <InvalidateOnResize />
+          <MapSearch />
           <FitOnNew located={located} />
           <FlyToSelected target={selectedPos} />
           {located.map((d) => {
