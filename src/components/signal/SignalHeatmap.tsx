@@ -35,6 +35,50 @@ import { MapSearch } from './MapSearch';
 
 const CELLS_REFRESH_MS = 15_000; // 측정 진행 중 격자가 실시간으로 채워지도록 주기 갱신
 
+// 서버 집계 격자와 동일한 수식 (contract §2) — 가상 격자선 렌더용.
+const CELL_SIZE_M = 15;
+const REF_LAT = 37.5665;
+const LAT_STEP = CELL_SIZE_M / 111_320;
+const LNG_STEP = CELL_SIZE_M / (111_320 * Math.cos((REF_LAT * Math.PI) / 180));
+const GRID_MIN_ZOOM = 16; // 셀이 수 px 이하로 뭉개지는 저줌에서는 생략
+
+// 가상 격자선 — 위도 0°×경도 0° 절대 원점 격자를 뷰포트에 미리 그려서
+// 측정 셀이 "이미 그려진 칸을 채우는" 느낌을 준다. 팬/줌마다 다시 그린다.
+function VirtualGrid() {
+  const map = useMap();
+  useEffect(() => {
+    const group = L.layerGroup().addTo(map);
+    const style: L.PolylineOptions = {
+      color: '#94a3b8',
+      weight: 0.6,
+      opacity: 0.35,
+      interactive: false,
+    };
+    const redraw = () => {
+      group.clearLayers();
+      if (map.getZoom() < GRID_MIN_ZOOM) return;
+      const b = map.getBounds().pad(0.15);
+      const south = Math.floor(b.getSouth() / LAT_STEP) * LAT_STEP;
+      const west = Math.floor(b.getWest() / LNG_STEP) * LNG_STEP;
+      let guard = 0;
+      for (let lat = south; lat <= b.getNorth() && guard < 500; lat += LAT_STEP, guard++) {
+        L.polyline([[lat, b.getWest()], [lat, b.getEast()]], style).addTo(group);
+      }
+      guard = 0;
+      for (let lng = west; lng <= b.getEast() && guard < 500; lng += LNG_STEP, guard++) {
+        L.polyline([[b.getSouth(), lng], [b.getNorth(), lng]], style).addTo(group);
+      }
+    };
+    redraw();
+    map.on('moveend zoomend', redraw);
+    return () => {
+      map.off('moveend zoomend', redraw);
+      group.remove();
+    };
+  }, [map]);
+  return null;
+}
+
 type LGeoJsonArg = Parameters<typeof L.geoJSON>[0];
 const round1 = (v: number): number => Math.round(v * 10) / 10;
 
@@ -380,6 +424,7 @@ export function SignalHeatmap({
             <InvalidateOnResize />
             <MapSearch />
             <FlyTo target={flyTarget} />
+            <VirtualGrid />
             {cells && status === 'ready' && <OutdoorGeoJson data={cells} thresholds={thresholds} />}
             {deviceLatest
               ?.filter((d) => d.latestOutdoor)
