@@ -14,8 +14,8 @@ import {
 } from 'chart.js';
 import type { ChartData, ChartOptions } from 'chart.js';
 import { Line } from 'react-chartjs-2';
-import { fetchHistory, fetchMeasurements } from '../../api/signalApi';
-import type { HistoryPoint, SignalMeasurement } from '../../types/signal';
+import { fetchHistory, fetchMeasurements, fetchSessions } from '../../api/signalApi';
+import type { HistoryPoint, SessionSummary, SignalMeasurement } from '../../types/signal';
 import type { GradeThresholds } from '../../utils/signal';
 import {
   DEFAULT_THRESHOLDS,
@@ -51,8 +51,25 @@ function fmtTickLabel(iso: string): string {
   });
 }
 
+// 세션 셀렉트 라벨: "7/15 14:02 ~ 14:31 · 214건"
+function fmtSessionLabel(s: SessionSummary): string {
+  const a = new Date(s.startedAt);
+  const b = new Date(s.endedAt);
+  const d = a.toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' });
+  const t1 = a.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  const t2 = b.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  return `${d} ${t1} ~ ${t2} · ${s.count}건`;
+}
+
 // RSRP(좌축)·SINR(우축) 이중축 라인 차트 — chart.js + react-chartjs-2.
-function TrendChart({ points }: { points: HistoryPoint[] }) {
+// 포인트 클릭 시 onPointClick(버킷 인덱스) — 리플레이가 해당 시각으로 이동한다.
+function TrendChart({
+  points,
+  onPointClick,
+}: {
+  points: HistoryPoint[];
+  onPointClick?: (index: number) => void;
+}) {
   const data = useMemo<ChartData<'line', (number | null)[], string>>(
     () => ({
       labels: points.map((p) => fmtTickLabel(p.t)),
@@ -96,6 +113,9 @@ function TrendChart({ points }: { points: HistoryPoint[] }) {
       maintainAspectRatio: false,
       animation: false,
       interaction: { mode: 'index', intersect: false },
+      onClick: (_event, elements) => {
+        if (elements.length > 0) onPointClick?.(elements[0].index);
+      },
       plugins: {
         legend: { labels: { color: textStrong, boxWidth: 14, boxHeight: 3 } },
         tooltip: {
@@ -127,7 +147,7 @@ function TrendChart({ points }: { points: HistoryPoint[] }) {
         },
       },
     };
-  }, []);
+  }, [onPointClick]);
 
   return (
     <div className="signal-chart-wrap">
@@ -159,6 +179,10 @@ type LoadState = 'idle' | 'loading' | 'ready' | 'empty' | 'error';
 export function SignalAnalysis({ storeDeviceIds, thresholds = DEFAULT_THRESHOLDS }: Props) {
   const [deviceIds, setDeviceIds] = useState<string[]>(storeDeviceIds);
   const [deviceId, setDeviceId] = useState<string | null>(storeDeviceIds[0] ?? null);
+  // 조회 기준: 측정 회차(기본 — 시작~중지 한 번이 하나의 세션) 또는 기간.
+  const [queryMode, setQueryMode] = useState<'session' | 'range'>('session');
+  const [sessions, setSessions] = useState<SessionSummary[]>([]);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [rangeValue, setRangeValue] = useState<string>('24h');
   const [customFrom, setCustomFrom] = useState<string>('');
   const [customTo, setCustomTo] = useState<string>('');
@@ -170,8 +194,41 @@ export function SignalAnalysis({ storeDeviceIds, thresholds = DEFAULT_THRESHOLDS
   const [replayIdx, setReplayIdx] = useState(0);
   const [playing, setPlaying] = useState(false);
 
-  // 조회 구간 — 상대 기간 또는 직접 설정(custom). custom 입력이 미완성이면 null(조회 보류).
+  // 측정 세션 목록 로드 (기기 변경 시).
+  useEffect(() => {
+    if (!deviceId) {
+      setSessions([]);
+      setSessionId(null);
+      return;
+    }
+    let cancelled = false;
+    fetchSessions(deviceId)
+      .then((list) => {
+        if (cancelled) return;
+        setSessions(list);
+        setSessionId((prev) =>
+          prev && list.some((s) => s.sessionId === prev) ? prev : (list[0]?.sessionId ?? null),
+        );
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setSessions([]);
+        setSessionId(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [deviceId]);
+
+  // 조회 구간 — 측정 회차(세션 시작~종료 ±2초 버퍼) 또는 상대 기간/직접 설정.
   const fromTo = useMemo(() => {
+    if (queryMode === 'session') {
+      const s = sessions.find((x) => x.sessionId === sessionId);
+      if (!s) return null;
+      const from = new Date(new Date(s.startedAt).getTime() - 2_000).toISOString();
+      const to = new Date(new Date(s.endedAt).getTime() + 2_000).toISOString();
+      return { from, to };
+    }
     if (rangeValue === 'custom') {
       const f = customFrom ? new Date(customFrom) : null;
       const t = customTo ? new Date(customTo) : null;
@@ -182,7 +239,7 @@ export function SignalAnalysis({ storeDeviceIds, thresholds = DEFAULT_THRESHOLDS
     }
     const ms = TIME_RANGES.find((r) => r.value === rangeValue)?.ms ?? null;
     return rangeToFromTo(ms);
-  }, [rangeValue, customFrom, customTo]);
+  }, [queryMode, sessions, sessionId, rangeValue, customFrom, customTo]);
 
   // 기기 목록: 스토어 + measurements distinct 병합.
   useEffect(() => {
@@ -291,6 +348,27 @@ export function SignalAnalysis({ storeDeviceIds, thresholds = DEFAULT_THRESHOLDS
     });
   }, [replay.length, replayIdx]);
 
+  // 차트 포인트 클릭 → 해당 시각과 가장 가까운 리플레이 레코드로 이동.
+  const handleChartPoint = useCallback(
+    (index: number) => {
+      const t = history[index]?.t;
+      if (!t || replay.length === 0) return;
+      const target = new Date(t).getTime();
+      let best = 0;
+      let bestDiff = Number.POSITIVE_INFINITY;
+      for (let i = 0; i < replay.length; i++) {
+        const diff = Math.abs(new Date(replay[i].recordedAt).getTime() - target);
+        if (diff < bestDiff) {
+          bestDiff = diff;
+          best = i;
+        }
+      }
+      setPlaying(false);
+      setReplayIdx(best);
+    },
+    [history, replay],
+  );
+
   return (
     <div className="signal-analysis">
       <div className="signal-controls">
@@ -308,37 +386,73 @@ export function SignalAnalysis({ storeDeviceIds, thresholds = DEFAULT_THRESHOLDS
             ))}
           </select>
         </label>
-        <label className="signal-field">
-          <span>기간</span>
-          <select value={rangeValue} onChange={(e) => setRangeValue(e.target.value)}>
-            {TIME_RANGES.map((r) => (
-              <option key={r.value} value={r.value}>
-                {r.label}
-              </option>
-            ))}
-            <option value="custom">직접 설정</option>
-          </select>
-        </label>
-        {rangeValue === 'custom' && (
+        <div className="signal-seg">
+          <button
+            className={`signal-seg-btn ${queryMode === 'session' ? 'active' : ''}`}
+            onClick={() => setQueryMode('session')}
+          >
+            측정 회차
+          </button>
+          <button
+            className={`signal-seg-btn ${queryMode === 'range' ? 'active' : ''}`}
+            onClick={() => setQueryMode('range')}
+          >
+            기간
+          </button>
+        </div>
+
+        {queryMode === 'session' && (
+          <label className="signal-field">
+            <span>회차</span>
+            <select
+              value={sessionId ?? ''}
+              onChange={(e) => setSessionId(e.target.value || null)}
+            >
+              {sessions.length === 0 && <option value="">회차 없음 (새 앱으로 측정 필요)</option>}
+              {sessions.map((s) => (
+                <option key={s.sessionId} value={s.sessionId}>
+                  {fmtSessionLabel(s)}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        {queryMode === 'range' && (
           <>
             <label className="signal-field">
-              <span>시작</span>
-              <input
-                type="datetime-local"
-                value={customFrom}
-                onChange={(e) => setCustomFrom(e.target.value)}
-              />
+              <span>기간</span>
+              <select value={rangeValue} onChange={(e) => setRangeValue(e.target.value)}>
+                {TIME_RANGES.map((r) => (
+                  <option key={r.value} value={r.value}>
+                    {r.label}
+                  </option>
+                ))}
+                <option value="custom">직접 설정</option>
+              </select>
             </label>
-            <label className="signal-field">
-              <span>종료</span>
-              <input
-                type="datetime-local"
-                value={customTo}
-                onChange={(e) => setCustomTo(e.target.value)}
-              />
-            </label>
-            {!fromTo && (
-              <span className="signal-field-note">시작·종료를 모두 선택하세요 (시작 &lt; 종료)</span>
+            {rangeValue === 'custom' && (
+              <>
+                <label className="signal-field">
+                  <span>시작</span>
+                  <input
+                    type="datetime-local"
+                    value={customFrom}
+                    onChange={(e) => setCustomFrom(e.target.value)}
+                  />
+                </label>
+                <label className="signal-field">
+                  <span>종료</span>
+                  <input
+                    type="datetime-local"
+                    value={customTo}
+                    onChange={(e) => setCustomTo(e.target.value)}
+                  />
+                </label>
+                {!fromTo && (
+                  <span className="signal-field-note">시작·종료를 모두 선택하세요 (시작 &lt; 종료)</span>
+                )}
+              </>
             )}
           </>
         )}
@@ -349,8 +463,9 @@ export function SignalAnalysis({ storeDeviceIds, thresholds = DEFAULT_THRESHOLDS
         {chartState === 'error' ? (
           <div className="signal-empty-overlay static">데이터 없음 · 서버 연결을 확인하세요</div>
         ) : (
-          <TrendChart points={chartState === 'ready' ? history : []} />
+          <TrendChart points={chartState === 'ready' ? history : []} onPointClick={handleChartPoint} />
         )}
+        <p className="signal-field-note">그래프의 특정 지점을 클릭하면 아래 리플레이가 해당 시각으로 이동합니다</p>
       </section>
 
       <section className="signal-section">

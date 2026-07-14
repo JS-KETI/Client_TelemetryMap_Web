@@ -58,6 +58,15 @@ export interface SignalFloor {
   cellSizeM: number;
 }
 
+// 계약 §10 — 측정 세션(회차) 요약.
+export interface SessionSummary {
+  sessionId: string;
+  startedAt: string;
+  endedAt: string;
+  count: number;
+  outdoorCount: number;
+}
+
 // 계약 §4.4 — 차트용 시계열.
 export interface HistoryPoint {
   t: string;

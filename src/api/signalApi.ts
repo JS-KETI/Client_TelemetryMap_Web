@@ -7,6 +7,7 @@ import type {
   Environment,
   HistoryResponse,
   Metric,
+  SessionSummary,
   SignalFloor,
   SignalMeasurement,
 } from '../types/signal';
@@ -77,6 +78,11 @@ export function fetchMeasurements(q: MeasurementsQuery): Promise<SignalMeasureme
       limit: q.limit,
     })}`,
   );
+}
+
+// §10 GET /api/signal/sessions → 측정 세션(회차) 목록 (최근 시작 순)
+export function fetchSessions(deviceId: string, limit = 50): Promise<SessionSummary[]> {
+  return getJson<SessionSummary[]>(`/api/signal/sessions${qs({ deviceId, limit })}`);
 }
 
 export interface HistoryQuery {
