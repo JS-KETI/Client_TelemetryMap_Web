@@ -37,6 +37,8 @@ export interface CellsQuery {
   to?: string;
   floorId?: number;
   deviceId?: string;
+  /** avg = 기간 내 평균(기본) · latest = 셀별 최신 측정값(현재 상태 보기) */
+  agg?: 'avg' | 'latest';
 }
 
 // §4.2 GET /api/signal/cells → GeoJSON FeatureCollection
@@ -49,6 +51,7 @@ export function fetchCells(q: CellsQuery): Promise<CellFeatureCollection> {
       to: q.to,
       floorId: q.floorId,
       deviceId: q.deviceId,
+      agg: q.agg,
     })}`,
   );
 }

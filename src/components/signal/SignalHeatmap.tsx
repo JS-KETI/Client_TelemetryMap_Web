@@ -248,7 +248,8 @@ export function SignalHeatmap({
 }) {
   const [env, setEnv] = useState<Environment>('OUTDOOR');
   const [metric, setMetric] = useState<Metric>('cellularScore');
-  const [rangeValue, setRangeValue] = useState<string>('24h');
+  // 기본 '전체' = 셀별 최신 측정값 기준 "현재 상태" 보기. 기간 선택 시 해당 기간 평균(작업 구역 파악용).
+  const [rangeValue, setRangeValue] = useState<string>('all');
   const [floors, setFloors] = useState<SignalFloor[]>([]);
   const [floorId, setFloorId] = useState<number | null>(null);
   const [cells, setCells] = useState<CellFeatureCollection | null>(null);
@@ -311,6 +312,7 @@ export function SignalHeatmap({
       from,
       to,
       floorId: env === 'INDOOR' ? floorId ?? undefined : undefined,
+      agg: rangeValue === 'all' ? 'latest' : 'avg',
     })
       .then((fc) => {
         if (cancelled) return;
@@ -361,7 +363,7 @@ export function SignalHeatmap({
           <select value={rangeValue} onChange={(e) => setRangeValue(e.target.value)}>
             {TIME_RANGES.map((r) => (
               <option key={r.value} value={r.value}>
-                {r.label}
+                {r.value === 'all' ? '전체 (최신 상태)' : r.label}
               </option>
             ))}
           </select>
