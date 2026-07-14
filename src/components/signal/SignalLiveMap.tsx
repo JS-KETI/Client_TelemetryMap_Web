@@ -15,6 +15,7 @@ import {
   GRADE_LABELS,
   measurementCellScore,
   measurementGrade,
+  measurementWifiScore,
 } from '../../utils/signal';
 import { ESRI_LABELS, ESRI_SATELLITE, InvalidateOnResize, makeSignalIcon, SEOUL } from './mapShared';
 import { MapSearch } from './MapSearch';
@@ -98,9 +99,9 @@ export function SignalLiveMap({ deviceLatest, thresholds = DEFAULT_THRESHOLDS }:
   return (
     <div className="signal-live">
       <div className="signal-live-map">
-        <MapContainer center={center} zoom={15} className="signal-leaflet" zoomControl={false}>
-          <TileLayer url={ESRI_SATELLITE} attribution="Tiles &copy; Esri" />
-          <TileLayer url={ESRI_LABELS} />
+        <MapContainer center={center} zoom={15} maxZoom={22} className="signal-leaflet" zoomControl={false}>
+          <TileLayer url={ESRI_SATELLITE} attribution="Tiles &copy; Esri" maxZoom={22} maxNativeZoom={19} />
+          <TileLayer url={ESRI_LABELS} maxZoom={22} maxNativeZoom={19} />
           <InvalidateOnResize />
           <MapSearch />
           <FitOnNew located={located} />
@@ -168,10 +169,12 @@ export function SignalLiveMap({ deviceLatest, thresholds = DEFAULT_THRESHOLDS }:
           <div className="signal-device-detail">
             <div className="signal-detail-title">{selected.deviceId}</div>
             <dl>
-              <dt>RSRP</dt><dd>{fmtNum(selected.latest.rsrp, ' dBm')}</dd>
-              <dt>SINR</dt><dd>{fmtNum(selected.latest.sinr, ' dB')}</dd>
-              <dt>Score</dt><dd>{fmtNum(measurementCellScore(selected.latest))}</dd>
-              <dt>networkType</dt><dd>{selected.latest.networkType ?? '-'}</dd>
+              <dt>RSRP (셀룰러)</dt><dd>{fmtNum(selected.latest.rsrp, ' dBm')}</dd>
+              <dt>SINR (셀룰러)</dt><dd>{fmtNum(selected.latest.sinr, ' dB')}</dd>
+              <dt>셀룰러 점수</dt><dd>{fmtNum(measurementCellScore(selected.latest))}</dd>
+              <dt>WiFi RSSI</dt><dd>{fmtNum(selected.latest.wifiRssi, ' dBm')}</dd>
+              <dt>WiFi 점수</dt><dd>{fmtNum(measurementWifiScore(selected.latest))}</dd>
+              <dt>현재 망</dt><dd>{selected.latest.networkType ?? '-'}</dd>
             </dl>
             {selected.latestOutdoor == null && (
               <div className="signal-detail-note">실외 측정 없음 (지도 마커 없음)</div>

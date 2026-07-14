@@ -160,6 +160,8 @@ export function SignalAnalysis({ storeDeviceIds, thresholds = DEFAULT_THRESHOLDS
   const [deviceIds, setDeviceIds] = useState<string[]>(storeDeviceIds);
   const [deviceId, setDeviceId] = useState<string | null>(storeDeviceIds[0] ?? null);
   const [rangeValue, setRangeValue] = useState<string>('24h');
+  const [customFrom, setCustomFrom] = useState<string>('');
+  const [customTo, setCustomTo] = useState<string>('');
 
   const [history, setHistory] = useState<HistoryPoint[]>([]);
   const [chartState, setChartState] = useState<LoadState>('idle');
@@ -168,10 +170,19 @@ export function SignalAnalysis({ storeDeviceIds, thresholds = DEFAULT_THRESHOLDS
   const [replayIdx, setReplayIdx] = useState(0);
   const [playing, setPlaying] = useState(false);
 
-  const rangeMs = useMemo(
-    () => TIME_RANGES.find((r) => r.value === rangeValue)?.ms ?? null,
-    [rangeValue],
-  );
+  // 조회 구간 — 상대 기간 또는 직접 설정(custom). custom 입력이 미완성이면 null(조회 보류).
+  const fromTo = useMemo(() => {
+    if (rangeValue === 'custom') {
+      const f = customFrom ? new Date(customFrom) : null;
+      const t = customTo ? new Date(customTo) : null;
+      if (f && t && !Number.isNaN(f.getTime()) && !Number.isNaN(t.getTime()) && f < t) {
+        return { from: f.toISOString(), to: t.toISOString() };
+      }
+      return null;
+    }
+    const ms = TIME_RANGES.find((r) => r.value === rangeValue)?.ms ?? null;
+    return rangeToFromTo(ms);
+  }, [rangeValue, customFrom, customTo]);
 
   // 기기 목록: 스토어 + measurements distinct 병합.
   useEffect(() => {
@@ -200,14 +211,14 @@ export function SignalAnalysis({ storeDeviceIds, thresholds = DEFAULT_THRESHOLDS
 
   // 히스토리(차트) 로드.
   useEffect(() => {
-    if (!deviceId) {
+    if (!deviceId || !fromTo) {
       setHistory([]);
       setChartState('empty');
       return;
     }
     let cancelled = false;
     setChartState('loading');
-    const { from, to } = rangeToFromTo(rangeMs);
+    const { from, to } = fromTo;
     fetchHistory({ deviceId, from, to, bucketSeconds: 60 })
       .then((res) => {
         if (cancelled) return;
@@ -222,18 +233,18 @@ export function SignalAnalysis({ storeDeviceIds, thresholds = DEFAULT_THRESHOLDS
     return () => {
       cancelled = true;
     };
-  }, [deviceId, rangeMs]);
+  }, [deviceId, fromTo]);
 
   // 리플레이용 실외 측정 구간 로드.
   useEffect(() => {
-    if (!deviceId) {
+    if (!deviceId || !fromTo) {
       setReplay([]);
       return;
     }
     let cancelled = false;
     setPlaying(false);
     setReplayIdx(0);
-    const { from, to } = rangeToFromTo(rangeMs);
+    const { from, to } = fromTo;
     fetchMeasurements({ deviceId, environment: 'OUTDOOR', from, to, limit: 2000 })
       .then((list) => {
         if (cancelled) return;
@@ -245,7 +256,7 @@ export function SignalAnalysis({ storeDeviceIds, thresholds = DEFAULT_THRESHOLDS
     return () => {
       cancelled = true;
     };
-  }, [deviceId, rangeMs]);
+  }, [deviceId, fromTo]);
 
   // 재생 타이머.
   useEffect(() => {
@@ -305,8 +316,32 @@ export function SignalAnalysis({ storeDeviceIds, thresholds = DEFAULT_THRESHOLDS
                 {r.label}
               </option>
             ))}
+            <option value="custom">직접 설정</option>
           </select>
         </label>
+        {rangeValue === 'custom' && (
+          <>
+            <label className="signal-field">
+              <span>시작</span>
+              <input
+                type="datetime-local"
+                value={customFrom}
+                onChange={(e) => setCustomFrom(e.target.value)}
+              />
+            </label>
+            <label className="signal-field">
+              <span>종료</span>
+              <input
+                type="datetime-local"
+                value={customTo}
+                onChange={(e) => setCustomTo(e.target.value)}
+              />
+            </label>
+            {!fromTo && (
+              <span className="signal-field-note">시작·종료를 모두 선택하세요 (시작 &lt; 종료)</span>
+            )}
+          </>
+        )}
       </div>
 
       <section className="signal-section">
@@ -325,9 +360,9 @@ export function SignalAnalysis({ storeDeviceIds, thresholds = DEFAULT_THRESHOLDS
             {replay.length === 0 && (
               <div className="signal-empty-overlay">실외 측정 데이터 없음</div>
             )}
-            <MapContainer center={currentPos ?? SEOUL} zoom={16} className="signal-leaflet" zoomControl={false}>
-              <TileLayer url={ESRI_SATELLITE} attribution="Tiles &copy; Esri" />
-              <TileLayer url={ESRI_LABELS} />
+            <MapContainer center={currentPos ?? SEOUL} zoom={16} maxZoom={22} className="signal-leaflet" zoomControl={false}>
+              <TileLayer url={ESRI_SATELLITE} attribution="Tiles &copy; Esri" maxZoom={22} maxNativeZoom={19} />
+              <TileLayer url={ESRI_LABELS} maxZoom={22} maxNativeZoom={19} />
               <InvalidateOnResize />
               <ReplayCenter target={currentPos} />
               {currentPos && currentIcon && <Marker position={currentPos} icon={currentIcon} />}

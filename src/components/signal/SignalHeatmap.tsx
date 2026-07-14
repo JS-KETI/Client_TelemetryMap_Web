@@ -416,11 +416,12 @@ export function SignalHeatmap({
           <MapContainer
             center={SEOUL}
             zoom={15}
+            maxZoom={22}
             className="signal-leaflet"
             zoomControl={false}
           >
-            <TileLayer url={ESRI_SATELLITE} attribution="Tiles &copy; Esri" />
-            <TileLayer url={ESRI_LABELS} />
+            <TileLayer url={ESRI_SATELLITE} attribution="Tiles &copy; Esri" maxZoom={22} maxNativeZoom={19} />
+            <TileLayer url={ESRI_LABELS} maxZoom={22} maxNativeZoom={19} />
             <InvalidateOnResize />
             <MapSearch />
             <FlyTo target={flyTarget} />
@@ -458,21 +459,25 @@ export function SignalHeatmap({
           {deviceLatest?.map((d) => {
             const grade = measurementGrade(d.latest, thresholds);
             return (
-              <button
-                key={d.deviceId}
-                className="signal-device-row"
-                onClick={() => {
-                  const m = d.latestOutdoor;
-                  if (m) {
-                    setEnv('OUTDOOR');
-                    setFlyTarget([m.latitude!, m.longitude!]);
-                  }
-                }}
-              >
+              <div key={d.deviceId} className="signal-device-row signal-device-row-plain">
                 <span className="signal-dot" style={{ background: gradeColor(grade) }} />
                 <span className="signal-device-id">{d.deviceId}</span>
                 <span className="signal-device-score">{fmtNum(measurementCellScore(d.latest))}</span>
-              </button>
+                <button
+                  className="signal-device-go"
+                  disabled={!d.latestOutdoor}
+                  title="이 기기 위치로 지도 이동"
+                  onClick={() => {
+                    const m = d.latestOutdoor;
+                    if (m) {
+                      setEnv('OUTDOOR');
+                      setFlyTarget([m.latitude!, m.longitude!]);
+                    }
+                  }}
+                >
+                  이동
+                </button>
+              </div>
             );
           })}
         </div>

@@ -110,6 +110,13 @@ export function measurementCellScore(m: SignalMeasurement): number | null {
   return null;
 }
 
+// WiFi 점수 — 서버값 우선, 없으면 로컬 계산.
+export function measurementWifiScore(m: SignalMeasurement): number | null {
+  if (m.wifiScore != null) return m.wifiScore;
+  if (m.wifiRssi != null) return wifiScoreOf(m.wifiRssi);
+  return null;
+}
+
 // 라이브 지도 마커 색상 기준 등급 (계약 §8: 최신 cellularScore 의 등급).
 // 사용자 조정 임계값을 반영하기 위해 서버 grade 대신 항상 점수에서 로컬 계산한다.
 export function measurementGrade(

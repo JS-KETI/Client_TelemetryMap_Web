@@ -37,7 +37,7 @@ const CONN_LABEL: Record<SignalSocketStatus, string> = {
 const ACTIVE_WINDOW_MS = 10 * 60_000;
 
 function App() {
-  const { deviceIds, deviceLatest, handleSnapshot, handleUpsert } = useSignalStore();
+  const { deviceIds, deviceLatest, handleSnapshot, handleUpsert, handleDeviceStop } = useSignalStore();
   const [tab, setTab] = useState<Tab>('heatmap');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [thresholds, setThresholds] = useState<GradeThresholds>(() => loadThresholds());
@@ -46,6 +46,7 @@ function App() {
     url: SIGNAL_WS_URL,
     onSnapshot: handleSnapshot,
     onUpsert: handleUpsert,
+    onDeviceStop: handleDeviceStop,
   });
 
   const handleThresholds = (t: GradeThresholds) => {

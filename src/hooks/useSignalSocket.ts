@@ -10,18 +10,20 @@ interface UseSignalSocketOptions {
   url: string;
   onSnapshot: (measurements: SignalMeasurement[]) => void;
   onUpsert: (measurements: SignalMeasurement[]) => void;
+  /** 측정 종료 신호 — 해당 기기를 라이브 뷰에서 즉시 제외. */
+  onDeviceStop?: (deviceId: string) => void;
 }
 
-export function useSignalSocket({ url, onSnapshot, onUpsert }: UseSignalSocketOptions) {
+export function useSignalSocket({ url, onSnapshot, onUpsert, onDeviceStop }: UseSignalSocketOptions) {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<number | null>(null);
   const intentionalCloseRef = useRef(false);
-  const handlersRef = useRef({ onSnapshot, onUpsert });
+  const handlersRef = useRef({ onSnapshot, onUpsert, onDeviceStop });
   const [status, setStatus] = useState<SignalSocketStatus>('connecting');
 
   useEffect(() => {
-    handlersRef.current = { onSnapshot, onUpsert };
-  }, [onSnapshot, onUpsert]);
+    handlersRef.current = { onSnapshot, onUpsert, onDeviceStop };
+  }, [onSnapshot, onUpsert, onDeviceStop]);
 
   useEffect(() => {
     intentionalCloseRef.current = false;
@@ -55,6 +57,11 @@ export function useSignalSocket({ url, onSnapshot, onUpsert }: UseSignalSocketOp
             case 'signal_upsert':
               h.onUpsert(measurements);
               break;
+            case 'signal_device_stop': {
+              const id = msg.payload?.deviceId;
+              if (id) h.onDeviceStop?.(id);
+              break;
+            }
           }
         } catch (e) {
           console.error('[SignalWS] Parse error:', e);

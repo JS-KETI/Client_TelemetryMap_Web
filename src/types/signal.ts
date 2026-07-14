@@ -98,11 +98,11 @@ export interface CellFeatureCollection {
   features: CellFeature[];
 }
 
-// 계약 §5 — WS 봉투.
-export type SignalWsType = 'signal_snapshot' | 'signal_upsert';
+// 계약 §5 — WS 봉투. signal_device_stop 은 측정 종료 신호 (payload = {deviceId}).
+export type SignalWsType = 'signal_snapshot' | 'signal_upsert' | 'signal_device_stop';
 
 export interface SignalWsMessage {
   type: SignalWsType;
-  payload: { measurements: SignalMeasurement[] };
+  payload: { measurements?: SignalMeasurement[]; deviceId?: string };
   timestamp: string;
 }

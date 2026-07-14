@@ -10,7 +10,8 @@ export type SignalState = Map<string, SignalMeasurement[]>; // deviceId → reco
 
 type Action =
   | { type: 'SNAPSHOT'; measurements: SignalMeasurement[] }
-  | { type: 'UPSERT'; measurements: SignalMeasurement[] };
+  | { type: 'UPSERT'; measurements: SignalMeasurement[] }
+  | { type: 'REMOVE_DEVICE'; deviceId: string };
 
 function keyOf(m: SignalMeasurement): string {
   if (m.id != null) return `id:${m.id}`;
@@ -70,6 +71,12 @@ function reducer(state: SignalState, action: Action): SignalState {
       return ingest(new Map(), action.measurements);
     case 'UPSERT':
       return ingest(state, action.measurements);
+    case 'REMOVE_DEVICE': {
+      if (!state.has(action.deviceId)) return state;
+      const next = new Map(state);
+      next.delete(action.deviceId);
+      return next;
+    }
     default:
       return state;
   }
@@ -91,6 +98,11 @@ export function useSignalStore() {
 
   const handleUpsert = useCallback((list: SignalMeasurement[]) => {
     dispatch({ type: 'UPSERT', measurements: list });
+  }, []);
+
+  // 측정 종료 신호 — 해당 기기를 라이브 뷰에서 즉시 제거 (서버 이력·히트맵은 유지).
+  const handleDeviceStop = useCallback((deviceId: string) => {
+    dispatch({ type: 'REMOVE_DEVICE', deviceId });
   }, []);
 
   // deviceId 목록 (정렬)
@@ -115,5 +127,5 @@ export function useSignalStore() {
     return out.sort((a, b) => a.deviceId.localeCompare(b.deviceId));
   }, [measurements]);
 
-  return { measurements, deviceIds, deviceLatest, handleSnapshot, handleUpsert };
+  return { measurements, deviceIds, deviceLatest, handleSnapshot, handleUpsert, handleDeviceStop };
 }
