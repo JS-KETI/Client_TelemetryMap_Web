@@ -14,7 +14,7 @@ import {
 } from 'chart.js';
 import type { ChartData, ChartOptions } from 'chart.js';
 import { Line } from 'react-chartjs-2';
-import { fetchHistory, fetchMeasurements, fetchSessions } from '../../api/signalApi';
+import { fetchDevices, fetchHistory, fetchMeasurements, fetchSessions } from '../../api/signalApi';
 import type { HistoryPoint, SessionSummary, SignalMeasurement } from '../../types/signal';
 import type { GradeThresholds } from '../../utils/signal';
 import {
@@ -241,24 +241,27 @@ export function SignalAnalysis({ storeDeviceIds, thresholds = DEFAULT_THRESHOLDS
     return rangeToFromTo(ms);
   }, [queryMode, sessions, sessionId, rangeValue, customFrom, customTo]);
 
-  // 기기 목록: 스토어 + measurements distinct 병합.
+  // 기기 목록: 이력 기반 devices API(계약 §11) + 라이브 스토어 병합.
+  // (구 방식 — measurements 7일 limit 2000 병합 — 은 오래된 순 컷 때문에
+  //  최근 측정 기기가 누락됐다: 측정 중지로 스토어에서 빠지는 순간 목록에서 사라지는 버그.)
   useEffect(() => {
     let cancelled = false;
-    const { from, to } = rangeToFromTo(7 * 86_400_000);
-    fetchMeasurements({ from, to, limit: 2000 })
+    fetchDevices()
       .then((list) => {
         if (cancelled) return;
-        const ids = new Set<string>([...storeDeviceIds]);
-        for (const m of list) ids.add(m.deviceId);
+        const ids = new Set<string>([...storeDeviceIds, ...list.map((d) => d.deviceId)]);
         const arr = Array.from(ids).sort();
         setDeviceIds(arr);
         setDeviceId((prev) => prev ?? (arr[0] ?? null));
       })
       .catch(() => {
         if (cancelled) return;
-        const arr = [...storeDeviceIds].sort();
-        setDeviceIds(arr);
-        setDeviceId((prev) => prev ?? (arr[0] ?? null));
+        // 이력 조회 실패 시에도 기존 목록을 줄이지 않는다 (스토어만 추가 병합).
+        setDeviceIds((prevList) => {
+          const ids = new Set<string>([...prevList, ...storeDeviceIds]);
+          return Array.from(ids).sort();
+        });
+        setDeviceId((prev) => prev ?? (storeDeviceIds[0] ?? null));
       });
     return () => {
       cancelled = true;

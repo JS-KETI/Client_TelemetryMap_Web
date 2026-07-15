@@ -4,6 +4,7 @@
 import type {
   ApiResponse,
   CellFeatureCollection,
+  DeviceSummary,
   Environment,
   HistoryResponse,
   Metric,
@@ -83,6 +84,11 @@ export function fetchMeasurements(q: MeasurementsQuery): Promise<SignalMeasureme
 // §10 GET /api/signal/sessions → 측정 세션(회차) 목록 (최근 시작 순)
 export function fetchSessions(deviceId: string, limit = 50): Promise<SessionSummary[]> {
   return getJson<SessionSummary[]>(`/api/signal/sessions${qs({ deviceId, limit })}`);
+}
+
+// §11 GET /api/signal/devices → 측정 이력 기기 목록 (최근 측정 순)
+export function fetchDevices(days = 30, limit = 100): Promise<DeviceSummary[]> {
+  return getJson<DeviceSummary[]>(`/api/signal/devices${qs({ days, limit })}`);
 }
 
 export interface HistoryQuery {

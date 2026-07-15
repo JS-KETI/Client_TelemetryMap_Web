@@ -67,6 +67,14 @@ export interface SessionSummary {
   outdoorCount: number;
 }
 
+// 계약 §11 — 측정 이력이 있는 기기 요약 (분석 탭 기기 목록용).
+export interface DeviceSummary {
+  deviceId: string;
+  lastRecordedAt: string;
+  count: number;
+  sessionCount: number;
+}
+
 // 계약 §4.4 — 차트용 시계열.
 export interface HistoryPoint {
   t: string;
