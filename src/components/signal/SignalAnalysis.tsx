@@ -51,14 +51,15 @@ function fmtTickLabel(iso: string): string {
   });
 }
 
-// 세션 셀렉트 라벨: "7/15 14:02 ~ 14:31 · 214건"
+// 세션 셀렉트 라벨: "7/15 14:02 ~ 14:31"
+// (레코드 수는 표기하지 않는다 — "N건"이 회차 개수로 오독된 피드백에 따라 제거)
 function fmtSessionLabel(s: SessionSummary): string {
   const a = new Date(s.startedAt);
   const b = new Date(s.endedAt);
   const d = a.toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' });
   const t1 = a.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
   const t2 = b.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-  return `${d} ${t1} ~ ${t2} · ${s.count}건`;
+  return `${d} ${t1} ~ ${t2}`;
 }
 
 // RSRP(좌축)·SINR(우축) 이중축 라인 차트 — chart.js + react-chartjs-2.
