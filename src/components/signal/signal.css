@@ -408,11 +408,11 @@
   margin-bottom: 10px;
 }
 /* chart.js 캔버스 컨테이너 — maintainAspectRatio:false 라 명시 높이 필요.
-   화면 높이에 따라 자동 조정 (작은 노트북에서 스크롤 최소화, 큰 모니터에서 여백 축소) */
+   화면 높이에 따라 자동 조정 (작은 노트북에서 스크롤 없이, 큰 모니터에서 여백 축소) */
 .signal-chart-wrap {
   position: relative;
   width: 100%;
-  height: clamp(180px, 28vh, 320px);
+  height: clamp(160px, 24vh, 320px);
 }
 
 /* 차트 지표 선택 칩 — active 색은 지표별 인라인 스타일 */
@@ -433,10 +433,23 @@
 }
 .signal-replay-map {
   position: relative;
-  height: clamp(220px, calc(100vh - 620px), 680px);
+  height: clamp(120px, calc(100vh - 650px), 680px);
   border: 1px solid var(--border);
   border-radius: 10px;
   overflow: hidden;
+}
+
+/* 낮은 화면(15인치 노트북 등) — 여백·차트를 줄여 차트+리플레이가 한 화면에 들어가게 */
+@media (max-height: 820px) {
+  .signal-analysis .signal-section {
+    padding: 10px 14px;
+  }
+  .signal-analysis .signal-field-note {
+    display: none;
+  }
+  .signal-chart-wrap {
+    height: clamp(140px, 22vh, 240px);
+  }
 }
 .signal-replay-controls {
   display: flex;
