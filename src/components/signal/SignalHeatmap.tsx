@@ -239,6 +239,27 @@ function FlyTo({ target }: { target: LatLngExpression | null }) {
   return null;
 }
 
+// 새 기기가 연결되면 자동으로 해당 위치로 이동 — 실시간 지도와 동일한 UX (테스터 피드백).
+// 이미 보이던 기기의 위치 갱신에는 반응하지 않아 지도 조작을 방해하지 않는다.
+function AutoFlyOnNewDevice({ deviceLatest }: { deviceLatest?: DeviceLatest[] }) {
+  const map = useMap();
+  const seen = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const located = (deviceLatest ?? []).filter((d) => d.latestOutdoor != null);
+    if (located.length === 0) {
+      seen.current = new Set();
+      return;
+    }
+    const fresh = located.find((d) => !seen.current.has(d.deviceId));
+    seen.current = new Set(located.map((d) => d.deviceId));
+    if (fresh) {
+      const m = fresh.latestOutdoor!;
+      map.setView([m.latitude!, m.longitude!], Math.max(map.getZoom(), 17), { animate: true });
+    }
+  }, [deviceLatest, map]);
+  return null;
+}
+
 export function SignalHeatmap({
   deviceLatest,
   thresholds = DEFAULT_THRESHOLDS,
@@ -427,6 +448,7 @@ export function SignalHeatmap({
             <InvalidateOnResize />
             <MapSearch />
             <FlyTo target={flyTarget} />
+            <AutoFlyOnNewDevice deviceLatest={deviceLatest} />
             <VirtualGrid />
             {cells && status === 'ready' && <OutdoorGeoJson data={cells} thresholds={thresholds} />}
             {deviceLatest

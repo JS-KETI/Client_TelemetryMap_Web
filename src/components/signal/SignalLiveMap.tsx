@@ -13,6 +13,7 @@ import {
   fmtTime,
   gradeColor,
   GRADE_LABELS,
+  gradeOfScore,
   measurementCellScore,
   measurementGrade,
   measurementWifiScore,
@@ -50,6 +51,41 @@ function FitOnNew({ located }: { located: Located[] }) {
     }
   }, [located, map]);
   return null;
+}
+
+// 점수 → "등급 (점수)" 표기 (예: 보통 (32)).
+function qualityText(score: number | null, thresholds: GradeThresholds): string {
+  if (score == null) return '-';
+  return `${GRADE_LABELS[gradeOfScore(score, thresholds)]} (${score})`;
+}
+
+// [Cellular]/[Wi-Fi] 그룹형 신호 상세 — 셀룰러·WiFi 표시 형식 통일 (테스터 피드백).
+function SignalDetailBody({
+  m,
+  thresholds,
+}: {
+  m: SignalMeasurement;
+  thresholds: GradeThresholds;
+}) {
+  return (
+    <>
+      <div className="signal-detail-group">Cellular</div>
+      <dl>
+        <dt>RSRP</dt><dd>{fmtNum(m.rsrp, ' dBm')}</dd>
+        <dt>RSRQ</dt><dd>{fmtNum(m.rsrq, ' dB')}</dd>
+        <dt>SINR</dt><dd>{fmtNum(m.sinr, ' dB')}</dd>
+        <dt>신호 품질</dt><dd>{qualityText(measurementCellScore(m), thresholds)}</dd>
+      </dl>
+      <div className="signal-detail-group">Wi-Fi</div>
+      <dl>
+        <dt>RSSI</dt><dd>{fmtNum(m.wifiRssi, ' dBm')}</dd>
+        <dt>신호 품질</dt><dd>{qualityText(measurementWifiScore(m), thresholds)}</dd>
+      </dl>
+      <dl className="signal-detail-net">
+        <dt>현재 망</dt><dd>{m.networkType ?? '-'}</dd>
+      </dl>
+    </>
+  );
 }
 
 // 선택된 기기로 부드럽게 이동.
@@ -129,12 +165,8 @@ export function SignalLiveMap({ deviceLatest, thresholds = DEFAULT_THRESHOLDS }:
                     <div className="signal-popup-grade" style={{ color: gradeColor(grade) }}>
                       {GRADE_LABELS[grade]} · 점수 {fmtNum(score)}
                     </div>
+                    <SignalDetailBody m={m} thresholds={thresholds} />
                     <dl>
-                      <dt>RSRP</dt><dd>{fmtNum(m.rsrp, ' dBm')}</dd>
-                      <dt>RSRQ</dt><dd>{fmtNum(m.rsrq, ' dB')}</dd>
-                      <dt>SINR</dt><dd>{fmtNum(m.sinr, ' dB')}</dd>
-                      <dt>WiFi</dt><dd>{fmtNum(m.wifiRssi, ' dBm')}</dd>
-                      <dt>망</dt><dd>{m.networkType ?? '-'}</dd>
                       <dt>시각</dt><dd>{fmtTime(m.recordedAt)}</dd>
                     </dl>
                   </div>
@@ -168,14 +200,7 @@ export function SignalLiveMap({ deviceLatest, thresholds = DEFAULT_THRESHOLDS }:
         {selected && (
           <div className="signal-device-detail">
             <div className="signal-detail-title">{selected.deviceId}</div>
-            <dl>
-              <dt>RSRP (셀룰러)</dt><dd>{fmtNum(selected.latest.rsrp, ' dBm')}</dd>
-              <dt>SINR (셀룰러)</dt><dd>{fmtNum(selected.latest.sinr, ' dB')}</dd>
-              <dt>셀룰러 점수</dt><dd>{fmtNum(measurementCellScore(selected.latest))}</dd>
-              <dt>WiFi RSSI</dt><dd>{fmtNum(selected.latest.wifiRssi, ' dBm')}</dd>
-              <dt>WiFi 점수</dt><dd>{fmtNum(measurementWifiScore(selected.latest))}</dd>
-              <dt>현재 망</dt><dd>{selected.latest.networkType ?? '-'}</dd>
-            </dl>
+            <SignalDetailBody m={selected.latest} thresholds={thresholds} />
             {selected.latestOutdoor == null && (
               <div className="signal-detail-note">실외 측정 없음 (지도 마커 없음)</div>
             )}

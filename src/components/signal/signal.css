@@ -172,6 +172,23 @@
   color: var(--text-secondary);
   font-style: italic;
 }
+/* [Cellular]/[Wi-Fi] 그룹 소제목 — 상세/팝업 신호 표시 형식 통일 */
+.signal-detail-group {
+  margin-top: 8px;
+  margin-bottom: 3px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.4px;
+}
+.signal-device-detail .signal-detail-group:first-of-type {
+  margin-top: 0;
+}
+.signal-detail-net {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border);
+}
 
 /* Leaflet 팝업/툴팁 다크 테마 (MapPip 패턴) */
 .signal-tab .leaflet-popup-content-wrapper,
@@ -193,9 +210,9 @@
 }
 .signal-popup dl {
   display: grid;
-  grid-template-columns: 44px 1fr;
+  grid-template-columns: 60px 1fr;
   gap: 2px 8px;
-  margin-top: 6px;
+  margin-top: 4px;
 }
 .signal-popup dt {
   color: var(--text-secondary);
@@ -390,11 +407,23 @@
   color: var(--accent);
   margin-bottom: 10px;
 }
-/* chart.js 캔버스 컨테이너 — maintainAspectRatio:false 라 고정 높이 필요 */
+/* chart.js 캔버스 컨테이너 — maintainAspectRatio:false 라 명시 높이 필요.
+   화면 높이에 따라 자동 조정 (작은 노트북에서 스크롤 최소화, 큰 모니터에서 여백 축소) */
 .signal-chart-wrap {
   position: relative;
   width: 100%;
-  height: 280px;
+  height: clamp(180px, 28vh, 320px);
+}
+
+/* 차트 지표 선택 칩 — active 색은 지표별 인라인 스타일 */
+.signal-chip-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.signal-chip.signal-metric-chip.active {
+  background: var(--bg-card);
 }
 
 .signal-replay {
@@ -404,7 +433,7 @@
 }
 .signal-replay-map {
   position: relative;
-  height: 520px;
+  height: clamp(220px, calc(100vh - 620px), 680px);
   border: 1px solid var(--border);
   border-radius: 10px;
   overflow: hidden;

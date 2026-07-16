@@ -30,8 +30,15 @@ import { ESRI_LABELS, ESRI_SATELLITE, InvalidateOnResize, makeSignalIcon, SEOUL 
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend);
 
-const RSRP_COLOR = '#38bdf8'; // sky
-const SINR_COLOR = '#f59e0b'; // amber
+// 차트 지표 정의 — dBm 계열(RSRP·WiFi RSSI)은 좌축, dB 계열(SINR·RSRQ)은 우축.
+const CHART_METRICS = [
+  { key: 'rsrp', label: 'RSRP (dBm)', color: '#38bdf8', axis: 'yDbm' },
+  { key: 'sinr', label: 'SINR (dB)', color: '#f59e0b', axis: 'yDb' },
+  { key: 'rsrq', label: 'RSRQ (dB)', color: '#a78bfa', axis: 'yDb' },
+  { key: 'wifiRssi', label: 'WiFi RSSI (dBm)', color: '#34d399', axis: 'yDbm' },
+] as const;
+type ChartMetricKey = (typeof CHART_METRICS)[number]['key'];
+const DEFAULT_CHART_METRICS: ChartMetricKey[] = ['rsrp', 'sinr'];
 
 // 다크 테마 색상을 기존 CSS 변수에서 읽는다 (없으면 폴백).
 function cssVar(name: string, fallback: string): string {
@@ -62,46 +69,36 @@ function fmtSessionLabel(s: SessionSummary): string {
   return `${d} ${t1} ~ ${t2}`;
 }
 
-// RSRP(좌축)·SINR(우축) 이중축 라인 차트 — chart.js + react-chartjs-2.
+// 지표 선택형 이중축 라인 차트 — dBm(좌축)/dB(우축), chart.js + react-chartjs-2.
 // 포인트 클릭 시 onPointClick(버킷 인덱스) — 리플레이가 해당 시각으로 이동한다.
 function TrendChart({
   points,
+  metrics,
   onPointClick,
 }: {
   points: HistoryPoint[];
+  metrics: ChartMetricKey[];
   onPointClick?: (index: number) => void;
 }) {
+  const active = useMemo(() => CHART_METRICS.filter((m) => metrics.includes(m.key)), [metrics]);
+
   const data = useMemo<ChartData<'line', (number | null)[], string>>(
     () => ({
       labels: points.map((p) => fmtTickLabel(p.t)),
-      datasets: [
-        {
-          label: 'RSRP (dBm)',
-          data: points.map((p) => p.rsrp),
-          borderColor: RSRP_COLOR,
-          backgroundColor: RSRP_COLOR,
-          yAxisID: 'yRsrp',
-          borderWidth: 1.8,
-          pointRadius: 0,
-          pointHitRadius: 8,
-          tension: 0,
-          spanGaps: false,
-        },
-        {
-          label: 'SINR (dB)',
-          data: points.map((p) => p.sinr),
-          borderColor: SINR_COLOR,
-          backgroundColor: SINR_COLOR,
-          yAxisID: 'ySinr',
-          borderWidth: 1.8,
-          pointRadius: 0,
-          pointHitRadius: 8,
-          tension: 0,
-          spanGaps: false,
-        },
-      ],
+      datasets: active.map((m) => ({
+        label: m.label,
+        data: points.map((p) => p[m.key]),
+        borderColor: m.color,
+        backgroundColor: m.color,
+        yAxisID: m.axis,
+        borderWidth: 1.8,
+        pointRadius: 0,
+        pointHitRadius: 8,
+        tension: 0,
+        spanGaps: false,
+      })),
     }),
-    [points],
+    [points, active],
   );
 
   const options = useMemo<ChartOptions<'line'>>(() => {
@@ -109,6 +106,8 @@ function TrendChart({
     const textStrong = cssVar('--text-primary', '#f8fafc');
     const grid = cssVar('--border', '#475569');
     const card = cssVar('--bg-card', '#334155');
+    const hasDbm = active.some((m) => m.axis === 'yDbm');
+    const hasDb = active.some((m) => m.axis === 'yDb');
     return {
       responsive: true,
       maintainAspectRatio: false,
@@ -132,28 +131,32 @@ function TrendChart({
           ticks: { color: text, maxTicksLimit: 6, maxRotation: 0, autoSkip: true },
           grid: { color: grid },
         },
-        yRsrp: {
+        yDbm: {
           type: 'linear',
           position: 'left',
-          title: { display: true, text: 'RSRP (dBm)', color: RSRP_COLOR },
-          ticks: { color: RSRP_COLOR },
+          display: hasDbm,
+          title: { display: true, text: 'dBm', color: text },
+          ticks: { color: text },
           grid: { color: grid },
         },
-        ySinr: {
+        yDb: {
           type: 'linear',
           position: 'right',
-          title: { display: true, text: 'SINR (dB)', color: SINR_COLOR },
-          ticks: { color: SINR_COLOR },
-          grid: { drawOnChartArea: false },
+          display: hasDb,
+          title: { display: true, text: 'dB', color: text },
+          ticks: { color: text },
+          grid: { drawOnChartArea: !hasDbm, color: grid },
         },
       },
     };
-  }, [onPointClick]);
+  }, [onPointClick, active]);
 
   return (
     <div className="signal-chart-wrap">
       {points.length === 0 ? (
         <div className="signal-empty-overlay static">데이터 없음 · 서버 연결을 확인하세요</div>
+      ) : active.length === 0 ? (
+        <div className="signal-empty-overlay static">표시할 지표를 선택하세요</div>
       ) : (
         <Line data={data} options={options} />
       )}
@@ -190,6 +193,8 @@ export function SignalAnalysis({ storeDeviceIds, thresholds = DEFAULT_THRESHOLDS
 
   const [history, setHistory] = useState<HistoryPoint[]>([]);
   const [chartState, setChartState] = useState<LoadState>('idle');
+  // 차트에 표시할 지표(다중 선택) — 기본 RSRP·SINR.
+  const [chartMetrics, setChartMetrics] = useState<ChartMetricKey[]>(DEFAULT_CHART_METRICS);
 
   const [replay, setReplay] = useState<SignalMeasurement[]>([]);
   const [replayIdx, setReplayIdx] = useState(0);
@@ -463,11 +468,34 @@ export function SignalAnalysis({ storeDeviceIds, thresholds = DEFAULT_THRESHOLDS
       </div>
 
       <section className="signal-section">
-        <h4>RSRP · SINR 시계열</h4>
+        <h4>신호 시계열</h4>
+        <div className="signal-chip-row">
+          {CHART_METRICS.map((m) => {
+            const on = chartMetrics.includes(m.key);
+            return (
+              <button
+                key={m.key}
+                className={`signal-chip signal-metric-chip ${on ? 'active' : ''}`}
+                style={on ? { borderColor: m.color, color: m.color } : undefined}
+                onClick={() =>
+                  setChartMetrics((prev) =>
+                    prev.includes(m.key) ? prev.filter((k) => k !== m.key) : [...prev, m.key],
+                  )
+                }
+              >
+                {m.label}
+              </button>
+            );
+          })}
+        </div>
         {chartState === 'error' ? (
           <div className="signal-empty-overlay static">데이터 없음 · 서버 연결을 확인하세요</div>
         ) : (
-          <TrendChart points={chartState === 'ready' ? history : []} onPointClick={handleChartPoint} />
+          <TrendChart
+            points={chartState === 'ready' ? history : []}
+            metrics={chartMetrics}
+            onPointClick={handleChartPoint}
+          />
         )}
         <p className="signal-field-note">그래프의 특정 지점을 클릭하면 아래 리플레이가 해당 시각으로 이동합니다</p>
       </section>

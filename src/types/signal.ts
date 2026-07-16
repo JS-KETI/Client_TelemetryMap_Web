@@ -75,10 +75,11 @@ export interface DeviceSummary {
   sessionCount: number;
 }
 
-// 계약 §4.4 — 차트용 시계열.
+// 계약 §4.4 — 차트용 시계열. (rsrq 는 2026-07-15 추가 — 그래프 지표 선택용)
 export interface HistoryPoint {
   t: string;
   rsrp: number | null;
+  rsrq: number | null;
   sinr: number | null;
   wifiRssi: number | null;
   cellularScore: number | null;
